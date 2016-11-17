@@ -4,9 +4,10 @@ import re
 
 import datetime
 
+import en as loc
+
 from telegram import InlineKeyboardButton
 from telegram import InlineKeyboardMarkup
-from telegram import ReplyKeyboardHide
 from telegram import ReplyKeyboardMarkup
 from telegram.ext import CallbackQueryHandler
 from telegram.ext import ConversationHandler
@@ -35,7 +36,6 @@ UNDEFINED_TAG = 'undefined_tag'
 MONTH_TAG = 'month_tag'
 CHOICE_TAG = 'choice'
 CANCEL_TAG = 'cancel'
-STATUS_TAG = 'status'
 
 HOTELS_LIST = 'hotels_list'
 ROOMS_LIST = 'rooms_list'
@@ -43,10 +43,10 @@ HOTEL_ID = 'id'
 ROOM_ID = 'room_id'
 STAR = emojize(':star:', use_aliases=True)
 
-reply_keyboard_template = [[CITY_TAG.capitalize()],
-                           [CHECK_IN_TAG.capitalize(), CHECK_OUT_TAG.capitalize()],
-                           ['Search hotels'],
-                           [CANCEL_TAG.capitalize()]]
+reply_keyboard_template = [[loc.CITY],
+                           [loc.CHECK_IN, loc.CHECK_OUT],
+                           [loc.SEARCH],
+                           [loc.CANCEL]]
 
 queries = {}
 
@@ -56,19 +56,18 @@ month_markup = ReplyKeyboardMarkup([months[1:4],
                                     months[4:7],
                                     months[7:10],
                                     months[10:13],
-                                    [CANCEL_TAG.capitalize()]], one_time_keyboard=True)
+                                    [loc.CANCEL]], one_time_keyboard=True)
 
 
-def get_reply_keyboard_markup(user_data):
+def get_reply_keyboard_markup(user_data=None):
     reply_keyboard = unshared_copy(reply_keyboard_template)  # type: list[list[str]]
     if user_data is not None:
-        for key in user_data:  # type: str
-            if key == CITY_TAG:
-                reply_keyboard[0][0] = reply_keyboard[0][0] + ': ' + user_data[CITY_TAG]
-            if key == CHECK_IN_TAG:
-                reply_keyboard[1][0] = reply_keyboard[1][0] + ': ' + user_data[CHECK_IN_TAG]
-            if key == CHECK_OUT_TAG:
-                reply_keyboard[1][1] = reply_keyboard[1][1] + ': ' + user_data[CHECK_OUT_TAG]
+        if CITY_TAG in user_data:
+            reply_keyboard[0][0] = reply_keyboard[0][0] + ': ' + user_data[CITY_TAG]
+        if CHECK_IN_TAG in user_data:
+            reply_keyboard[1][0] = reply_keyboard[1][0] + ': ' + user_data[CHECK_IN_TAG]
+        if CHECK_OUT_TAG in user_data:
+            reply_keyboard[1][1] = reply_keyboard[1][1] + ': ' + user_data[CHECK_OUT_TAG]
 
     return ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
 
@@ -80,29 +79,16 @@ def get_day_select_keyboard_markup(month: int):
                                 [str(x) for x in range(15, 22)],
                                 [str(x) for x in range(22, 29)],
                                 [str(x) for x in range(29, days_count)],
-                                [CANCEL_TAG.capitalize()]], one_time_keyboard=True)
+                                [loc.CANCEL]], one_time_keyboard=True)
+
+
+def show_query(update: telegram.Update, user_data=None):
+    update.message.reply_text('Please, fill your query', reply_markup=get_reply_keyboard_markup(user_data))
 
 
 def start(bot: telegram.Bot, update: telegram.Update):
-    msg = update.message  # type: telegram.Message
-    msg.reply_text("Hi, please fill your query", reply_markup=markup)
-
+    show_query(update)
     return CHOOSING
-
-
-def choice(bot: telegram.Bot, update: telegram.Update, user_data):
-    msg = update.message  # type: telegram.Message
-    tag = get_tag(msg.text)
-    if tag == UNDEFINED_TAG:
-        msg.reply_text('I dind\'t understand you.', reply_markup=get_reply_keyboard_markup(user_data))
-        return CHOOSING
-    user_data[CHOICE_TAG] = tag
-    if tag == CHECK_IN_TAG or tag == CHECK_OUT_TAG:
-        msg.reply_text('Please select month', reply_markup=month_markup)
-        return TYPING_DATE
-    msg.reply_text('Please, select your ' + tag)
-
-    return TYPING_REPLY
 
 
 def get_tag(msg: str):
@@ -115,15 +101,30 @@ def get_tag(msg: str):
     return UNDEFINED_TAG
 
 
+def choice(bot: telegram.Bot, update: telegram.Update, user_data):
+    msg = update.message  # type: telegram.Message
+    tag = get_tag(msg.text)
+    if tag == UNDEFINED_TAG:
+        msg.reply_text('I don\'t understand you.', reply_markup=get_reply_keyboard_markup(user_data))
+        return CHOOSING
+    user_data[CHOICE_TAG] = tag
+    if tag == CHECK_IN_TAG or tag == CHECK_OUT_TAG:
+        msg.reply_text('Please select month', reply_markup=month_markup)
+        return TYPING_DATE
+    msg.reply_text('Please, select your ' + tag)
+
+    return TYPING_REPLY
+
+
 def received_information(bot: telegram.Bot, update: telegram.Update, user_data):
     msg = update.message  # type: telegram.Message
-    if msg.text.lower() == CANCEL_TAG:
-        msg.reply_text("Please fill your query", reply_markup=markup)
+    if msg.text.lower() == loc.CANCEL:
+        show_query(update, user_data)
         return CHOOSING
     category = user_data[CHOICE_TAG].lower()
     user_data[category] = msg.text
     del user_data[CHOICE_TAG]
-    msg.reply_text('Here\'s your query', reply_markup=get_reply_keyboard_markup(user_data))
+    show_query(update, user_data)
     return CHOOSING
 
 
@@ -132,13 +133,13 @@ def receive_date(bot: telegram.Bot, update: telegram.Update, user_data):
     if msg.text.lower() == CANCEL_TAG:
         if MONTH_TAG in user_data:
             del user_data[MONTH_TAG]
-        msg.reply_text("Please fill your query", reply_markup=markup)
+        show_query(update)
         return CHOOSING
 
     if MONTH_TAG not in user_data:
         month = parse_month(msg.text)
         if month < 1 or month > 12:
-            msg.reply_text('Please select month', reply_markup=month_markup)
+            msg.reply_text('Invalid month, select another', reply_markup=month_markup)
             return TYPING_DATE
         user_data[MONTH_TAG] = month
         msg.reply_text('Please select day', reply_markup=get_day_select_keyboard_markup(month))
@@ -163,11 +164,11 @@ def receive_date(bot: telegram.Bot, update: telegram.Update, user_data):
             user_data[CHECK_OUT_TAG] = date.isoformat()
         del user_data[CHOICE_TAG]
     except ValueError:
-        msg.reply_text('Please select day', reply_markup=get_day_select_keyboard_markup(month))
+        msg.reply_text('Invalid day, try again', reply_markup=get_day_select_keyboard_markup(month))
         return TYPING_DATE
 
     del user_data[MONTH_TAG]
-    msg.reply_text('Here\'s your query', reply_markup=get_reply_keyboard_markup(user_data))
+    show_query(update, user_data)
     return CHOOSING
 
 
@@ -175,7 +176,11 @@ def search(bot: telegram.Bot, update: telegram.Update, user_data):
     msg = update.message  # type: telegram.Message
     if CHOICE_TAG in user_data:
         del user_data[CHOICE_TAG]
-    # msg.reply_text('Here\' your query: %s' % dict_to_str(user_data), reply_markup=ReplyKeyboardHide(True))
+
+    if CITY_TAG not in user_data or CHECK_IN_TAG not in user_data or CHECK_OUT_TAG not in user_data:
+        msg.reply_text('Fill all the fields', reply_markup=get_reply_keyboard_markup(user_data))
+        return CHOOSING
+
     check_in = user_data[CHECK_IN_TAG] if CHECK_IN_TAG in user_data else ''
     check_out = user_data[CHECK_OUT_TAG] if CHECK_OUT_TAG in user_data else ''
     city = user_data[CITY_TAG] if CITY_TAG in user_data else ''
@@ -184,28 +189,32 @@ def search(bot: telegram.Bot, update: telegram.Update, user_data):
     return ConversationHandler.END
 
 
-PREV = 'prev'
-NEXT = 'next'
-INFO = 'info'
-BACK = 'back'
-BOOK = 'book'
-FILTER = 'filter'
-SORT = 'sort'
+HOTEL_PREV = 'hotel_prev'
+HOTEL_NEXT = 'hotel_next'
+HOTEL_INFO = 'hotel_info'
+HOTEL_FILT = 'hotel_filt'
+HOTEL_SORT = 'hotel_sort'
+HOTEL_BACK = 'hotel_back'
+
+ROOM_PREV = 'room_prev'
+ROOM_NEXT = 'room_next'
+ROOM_BOOK = 'room_book'
+ROOM_BACK = 'room_back'
 
 hotel_keyboard_markup = InlineKeyboardMarkup([
-    [InlineKeyboardButton(PREV.capitalize(), callback_data=PREV),
-     InlineKeyboardButton(NEXT.capitalize(), callback_data=NEXT)],
-    [InlineKeyboardButton(INFO.capitalize(), callback_data=INFO)],
-    [InlineKeyboardButton(FILTER.capitalize(), callback_data=FILTER),
-     InlineKeyboardButton(SORT.capitalize(), callback_data=SORT)],
-    [InlineKeyboardButton(BACK.capitalize(), callback_data=BACK)]
+    [InlineKeyboardButton(loc.PREV, callback_data=HOTEL_PREV),
+     InlineKeyboardButton(loc.NEXT, callback_data=HOTEL_NEXT)],
+    [InlineKeyboardButton(loc.INFO, callback_data=HOTEL_INFO)],
+    [InlineKeyboardButton(loc.FILT, callback_data=HOTEL_FILT),
+     InlineKeyboardButton(loc.SORT, callback_data=HOTEL_SORT)],
+    [InlineKeyboardButton(loc.BACK, callback_data=HOTEL_BACK)]
 ])
 
 room_keyboard_markup = InlineKeyboardMarkup([
-    [InlineKeyboardButton(PREV.capitalize(), callback_data=PREV),
-     InlineKeyboardButton(NEXT.capitalize(), callback_data=NEXT)],
-    [InlineKeyboardButton(BOOK.capitalize(), callback_data=BOOK)],
-    [InlineKeyboardButton(BACK.capitalize(), callback_data=BACK)]
+    [InlineKeyboardButton(loc.PREV, callback_data=ROOM_PREV),
+     InlineKeyboardButton(loc.NEXT, callback_data=ROOM_NEXT)],
+    [InlineKeyboardButton(loc.BOOK, callback_data=ROOM_BOOK)],
+    [InlineKeyboardButton(loc.BACK, callback_data=ROOM_BACK)]
 ])
 
 
@@ -216,14 +225,15 @@ def show(update: telegram.Update, check_in: str, check_out: str, city: str):
         CITY_TAG: city,
         HOTELS_LIST: hotels,  # type [utils.Hotel]
         HOTEL_ID: 0,
-        ROOM_ID: 0,
-        STATUS_TAG: HOTEL_VIEW
+        ROOM_ID: 0
     }
     queries[update.message.chat_id] = query
-    update.message.reply_text(disable_web_page_preview=False,
-                              text=prettify_hotel(query[HOTELS_LIST][0]),
-                              parse_mode=telegram.ParseMode.HTML,
-                              reply_markup=hotel_keyboard_markup)
+    update.message.reply_text(
+        disable_web_page_preview=False,
+        text=prettify_hotel(query[HOTELS_LIST][0]),
+        parse_mode=telegram.ParseMode.HTML,
+        reply_markup=hotel_keyboard_markup
+    )
 
 
 def prettify_hotel(hotel: utils.Hotel):
@@ -267,27 +277,41 @@ def show_room(bot: telegram.Bot, callback_query, room: utils.Room):
 def button(bot: telegram.Bot, update: telegram.Update):
     callback_query = update.callback_query  # type: telegram.CallbackQuery
     query = queries[callback_query.message.chat_id]
-    op = callback_query.data.lower()
-    if op == PREV or op == NEXT:
-        if query[STATUS_TAG] == HOTEL_VIEW:
-            new_id = query[HOTEL_ID] - 1 if op == PREV else query[HOTEL_ID] + 1
-            if 0 <= new_id < len(query[HOTELS_LIST]):
-                query[HOTEL_ID] = new_id
-            show_hotel(bot, callback_query, query[HOTELS_LIST][query[HOTEL_ID]])
-        else:
-            new_id = query[ROOM_ID] - 1 if op == PREV else query[ROOM_ID] + 1
-            if 0 <= new_id < len(query[HOTELS_LIST][query[HOTEL_ID]].rooms):
-                query[ROOM_ID] = new_id
-            show_room(bot, callback_query, query[HOTELS_LIST][query[HOTEL_ID]].rooms[query[ROOM_ID]])
-    elif op == INFO:
+    op = callback_query.data
+
+    if op == HOTEL_PREV or op == HOTEL_NEXT:
+        hl = len(query[HOTELS_LIST])
+        query[HOTEL_ID] = new_id = (query[HOTEL_ID] - (1 if op == HOTEL_PREV else -1) + hl) % hl
+        show_hotel(bot, callback_query, query[HOTELS_LIST][new_id])
+
+    if op == ROOM_PREV or op == ROOM_NEXT:
+        rl = len(query[HOTELS_LIST][query[HOTEL_ID]].rooms)
+        query[ROOM_ID] = new_id = (query[ROOM_ID] - (1 if op == ROOM_PREV else -1) + rl) % rl
+        show_room(bot, callback_query, query[HOTELS_LIST][query[HOTEL_ID]].rooms[new_id])
+
+    if op == HOTEL_INFO:
         query[ROOM_ID] = 0
-        query[STATUS_TAG] = ROOM_VIEW
         show_room(bot, callback_query, query[HOTELS_LIST][query[HOTEL_ID]].rooms[query[ROOM_ID]])
-    elif op == BACK:
-        if query[STATUS_TAG] == ROOM_VIEW:
-            query[STATUS_TAG] = HOTEL_VIEW
-            del query[ROOM_ID]
-            show_hotel(bot, callback_query, query[HOTELS_LIST][query[HOTEL_ID]])
+
+    if op == HOTEL_FILT:
+        # TODO filter
+        pass
+
+    if op == HOTEL_SORT:
+        # TODO sort
+        pass
+
+    if op == HOTEL_BACK:
+        # TODO start new search
+        pass
+
+    if op == ROOM_BOOK:
+        # TODO book room
+        pass
+
+    if op == ROOM_BACK:
+        del query[ROOM_ID]
+        show_hotel(bot, callback_query, query[HOTELS_LIST][query[HOTEL_ID]])
 
 
 def main():

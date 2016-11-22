@@ -1,0 +1,9 @@
+{% extends "layout.html" %}
+{% block title %}Info{% endblock %}
+{% block body %}
+  <h2>Info</h2>
+  {% if error %}<div class="error"><strong>Error:</strong> {{ error }}</div>{% endif %}
+    <h2>{{hotel.name}}</h2><br>
+    <h3>Budget: {{hotel.budget}}</h3><br>
+
+{% endblock %}

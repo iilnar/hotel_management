@@ -1,0 +1,15 @@
+{% extends "layout.html" %}
+{% block title %}Staff{% endblock %}
+{% block body %}
+  <h2>Staff</h2>
+  {% if error %}<div class="error"><strong>Error:</strong> {{ error }}</div>{% endif %}
+    <h3>Staff</h3>
+<h3><a href="{{url_for('new_staff')}}">Add new staff</a></h3><br>
+  {% for s in staff %}
+    <div>
+        <a href="{{ url_for('staff_info', staff_passport=s.passport) }}">{{s.first_name + ' ' + s.last_name}}</a>
+    </div>
+  {% else %}
+    There's no bookings
+  {% endfor %}
+{% endblock %}

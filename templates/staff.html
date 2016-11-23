@@ -1,15 +1,22 @@
 {% extends "layout.html" %}
 {% block title %}Staff{% endblock %}
 {% block body %}
-  <h2>Staff</h2>
-  {% if error %}<div class="error"><strong>Error:</strong> {{ error }}</div>{% endif %}
-    <h3>Staff</h3>
+<h2>Staff</h2>
+{% if error %}
+<div class="error"><strong>Error:</strong> {{ error }}</div>{% endif %}
+<h3>Staff</h3>
 <h3><a href="{{url_for('new_staff')}}">Add new staff</a></h3><br>
-  {% for s in staff %}
-    <div>
-        <a href="{{ url_for('staff_info', staff_passport=s.passport) }}">{{s.first_name + ' ' + s.last_name}}</a>
-    </div>
-  {% else %}
+<table>
+    {% for s in staff %}
+    <tr>
+        <td>{{s.first_name + ' ' + s.last_name}}</td>
+        <td>{{s.position}}</td>
+        <td>{{s.salary}}</td>
+        <td><a href="{{ url_for('edit_staff', staff_passport=s.passport) }}">Edit</a></td>
+        <td><a href="{{ url_for('fire_staff', staff_passport=s.passport) }}">Fire</a></td>
+    </tr>
+    {% else %}
     There's no bookings
-  {% endfor %}
+    {% endfor %}
+</table>
 {% endblock %}

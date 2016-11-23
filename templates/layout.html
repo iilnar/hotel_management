@@ -5,10 +5,10 @@
   <h1>MiniHotel</h1>
   <div class="navigation">
   {% if g.user %}
-    <a href="{{ url_for('logout') }}">sign out [{{ g.user.username }}]</a>
     <a href="{{ url_for('bookings', hotel_id=g.user.hotel_id) }}">Bookings</a>
     <a href="{{ url_for('staff', hotel_id=g.user.hotel_id) }}">Staff</a>
-  {% else %}
+    <a href="{{ url_for('logout') }}">sign out [{{ g.user.first_name + ' ' + g.user.last_name }}]</a>
+    {% else %}
     <a href="{{ url_for('login') }}">sign in</a>
   {% endif %}
   </div>

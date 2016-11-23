@@ -46,7 +46,7 @@ class Booking:
         self.check_out_date = dict['check_out'] if 'check_out' in dict else None
         self.money = dict['money'] if 'money' in dict else None
         self.booking_date = dict['booking_date'] if 'booking_date' in dict else None
-        self.status = dict['status'] if 'status' in dict else None
+        self.status = int(dict['status']) if 'status' in dict else None
 
 
 class Feedback:

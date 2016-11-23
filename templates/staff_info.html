@@ -1,22 +1,28 @@
 {% extends "layout.html" %}
 {% block title %}Staff info{% endblock %}
 {% block body %}
-  <h2>Info</h2>
-  {% if error %}<div class="error"><strong>Error:</strong> {{ error }}</div>{% endif %}
-  <form action="/update_staff/{{staff.passport}}" method="post">
+<h2>Info</h2>
+{% set positions = ['cleaning', 'manager', 'concierge', 'kitchen_staff', 'administrator'] %}
+{% if error %}
+<div class="error"><strong>Error:</strong> {{ error }}</div>{% endif %}
+<form action="/edit_staff/{{staff.passport}}" method="post">
     <dl>
         {% if is_new %}
         <dt>Passport:
-      <dd><input type="text" name="passport" size="30" value="">{%endif%}
-      <dt>First name:
-      <dd><input type="text" name="first_name" size="30" value="{{ staff.first_name }}">
-      <dt>Last name:
-      <dd><input type="text" name="last_name" size="30" value="{{staff.last_name}}">
+        <dd><input type="text" name="passport" size="30" value="">{%endif%}
+        <dt>First name:
+        <dd><input type="text" name="first_name" size="30" value="{{ staff.first_name }}">
+        <dt>Last name:
+        <dd><input type="text" name="last_name" size="30" value="{{staff.last_name}}">
         <dt>Position:
-      <dd><input type="text" name="position" size="30" value="{{ staff.position }}">
+        <dd><select name="position" size="1">
+        {% for position in positions %}
+        <option value="{{position}}" {% if position == staff.position %}selected{% endif %}>{{position}}</option>
+        {% endfor %}
+        </select>
         <dt>Salary:
-      <dd><input type="text" name="salary" size="30" value="{{ staff.salary }}">
+        <dd><input type="text" name="salary" size="30" value="{{ staff.salary }}">
     </dl>
     <div class="actions"><input type="submit" value="{% if is_new %}Add new staff{%else%}Update info{%endif%}"></div>
-  </form>
+</form>
 {% endblock %}

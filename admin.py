@@ -58,12 +58,12 @@ def bookings(hotel_id):
     error = None
     hotel = get_db().get_hotel(hotel_id)
     if not check_permission(hotel=hotel):
-        return redirect(url_for('login'))
+        return redirect(url_for('error', error='Access denied'))
 
     bookings = get_db().get_bookings(hotel_id)
     for booking in bookings:
         user = get_db().get_user(booking.user_id)
-        booking.user = (user.first_name + ' ' + user.second_name)
+        booking.user = (user.first_name + ' ' + user.last_name)
     return render_template('bookings.html', bookings=bookings)
 
 
@@ -71,7 +71,7 @@ def bookings(hotel_id):
 def hotel_info(hotel_id):
     hotel = get_db().get_hotel(hotel_id)
     if not check_permission(hotel=hotel):
-        return redirect(url_for('login'))
+        return redirect(url_for('error', error='Access denied'))
 
     staff = get_db().get_all_staff(hotel_id)
     return render_template('hotel_info.html', hotel=hotel, staff=staff)
@@ -86,7 +86,7 @@ def empty():
 def staff(hotel_id):
     hotel = get_db().get_hotel(hotel_id)
     if not check_permission(hotel=hotel):
-        return redirect(url_for('login'))
+        return redirect(url_for('error', error='Access denied'))
 
     staff = get_db().get_all_staff(hotel_id)
     return render_template('staff.html', hotel=hotel, staff=staff)
@@ -105,26 +105,36 @@ def new_staff():
     return render_template('staff_info.html', staff=models.Staff(''), is_new=True)
 
 
-@app.route('/remove_staff/<staff_passport>', methods=['GET', 'POST'])
-def remove_staff(staff_passport):
-    staff = get_db().get_staff(staff_passport);
+@app.route('/error/<error>')
+def error(error):
+    return render_template('error.html', error=error)
+
+
+@app.route('/fire_staff/<staff_passport>', methods=['GET', 'POST'])
+def fire_staff(staff_passport):
+    staff = get_db().get_staff(staff_passport)
     if not check_permission(staff=staff):
         return redirect(url_for('login'))
-    return render_template(url_for('staff_list', hotel_id=g.user.hotel_id))
+    get_db().remove_staff(staff_passport)
+    return render_template(url_for('staff', hotel_id=g.user.hotel_id))
 
 
-@app.route('/update_staff/<staff_passport>', methods=['GET', 'POST'])
-def update_staff(staff_passport):
+@app.route('/edit_staff/<staff_passport>', methods=['GET', 'POST'])
+def edit_staff(staff_passport):
+    staff = get_db().get_staff(staff_passport)
     if request.method == 'POST':
-        staff = models.Staff(request.form)
-        staff.hotel_id = g.user.hotel_id
-        if staff_passport != 0:
-            staff.passport = staff_passport
-        if staff_passport == 0:
-            get_db().add_staff(staff)
-        else:
-            get_db().update_staff(staff)
-    return redirect(url_for('hotel_info', hotel_id=g.user.hotel_id))
+        if staff_passport == request.form['passport']:
+            new_staff = models.Staff(request.form)
+            new_staff.hotel_id = g.user.hotel_id
+
+            if staff is None:
+                get_db().add_staff(staff)
+            else:
+                get_db().update_staff(staff)
+            return redirect(url_for('staff', hotel_id=g.user.hotel_id))
+    if not check_permission(staff=staff):
+        return redirect(url_for('error', error='Passport is already taken or do not cheat'))
+    return render_template('staff_info.html', staff=staff, isNew=False)
 
 
 @app.route('/cancel_booking/<booking_id>')
@@ -133,7 +143,7 @@ def cancel_booking(booking_id):
     user = get_db().get_user(booking.user_id)
 
     if not check_permission(hotel=get_db().get_hotel(get_db().get_room(booking.room_id))):
-        return redirect(url_for('login'))
+        return redirect(url_for('error', error='Permission denied'))
 
     bo = telegram.Bot(bot.API_TOKEN)
     bo.sendMessage(
@@ -150,7 +160,7 @@ def approve_booking(booking_id):
     user = get_db().get_user(booking.user_id)
 
     if not check_permission(hotel=get_db().get_hotel(get_db().get_room(booking.room_id))):
-        return redirect(url_for('login'))
+        return redirect(url_for('error', error='Permission denied'))
 
     bo = telegram.Bot(bot.API_TOKEN)
     bo.sendMessage(

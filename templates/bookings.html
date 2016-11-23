@@ -1,16 +1,28 @@
 {% extends "layout.html" %}
 {% block title %}Booking{% endblock %}
 {% block body %}
-  <h2>Bookings</h2>
-  {% if error %}<div class="error"><strong>Error:</strong> {{ error }}</div>{% endif %}
-  {% for booking in bookings %}
-    <div>
-        {{booking.user}}
-        {{booking.check_in_date}}  {{booking.check_out_date }}
-        <a href="{{ url_for('approve_booking', booking_id=booking.id) }}">approve</a>
-        <a href="{{ url_for('cancel_booking', booking_id=booking.id) }}">cancel</a>
-    </div>
-  {% else %}
+<h2>Bookings</h2>
+{% if error %}
+<div class="error"><strong>Error:</strong> {{ error }}</div>{% endif %}
+<table>
+    {% for booking in bookings %}
+    <tr>
+        <td>{{booking.user}}</td>
+        <td>{{booking.check_in_date}}</td>
+        <td>  </td>
+        <td>{{booking.check_out_date }}</td>
+        {% if booking.status == 1 %}
+        <td><span style="color: red">new!</span> Waiting</td>
+        <td><a href="{{ url_for('approve_booking', booking_id=booking.id) }}">Approve</a></td>
+        <td></td>
+        {% else %}
+        <td>Approved<td>
+        <td></td>
+        <td><a href="{{ url_for('cancel_booking', booking_id=booking.id) }}">Cancel</a></td>
+        {% endif %}
+    </tr>
+    {% else %}
     There's no bookings
-  {% endfor %}
+    {% endfor %}
+</table>
 {% endblock %}
